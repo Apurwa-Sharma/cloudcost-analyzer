@@ -1,0 +1,195 @@
+# AI Cloud Cost Detective
+
+An AI-powered tool that investigates AWS cloud costs automatically. It scans resources in an AWS Region, detects cost issues like over-provisioning and misconfigurations, and provides actionable suggestions with fixes.
+
+## Tech Stack
+
+| Layer        | Technology                           |
+| ------------ | ------------------------------------ |
+| Frontend     | React (Vite + TypeScript + Tailwind) |
+| Backend      | Python (FastAPI)                     |
+| Auth         | Custom JWT Auth (bcrypt + PyJWT)     |
+| Cloud Data   | AWS CLI + Boto3                      |
+| Cloud        | AWS                                  |
+| AI Analysis  | Google Gemini API                    |
+| Database     | PostgreSQL                           |
+| Live Updates | FastAPI WebSocket                    |
+
+## Architecture
+
+```text
+                              ┌──────────────┐
+                              │     USER     │
+                              └──────┬───────┘
+                                     │
+                                     ▼
+                           ┌───────────────────┐
+                           │  REACT FRONTEND   │
+                           └────────┬──────────┘
+                                    │
+                                    │ Login / Signup
+                                    ▼
+                           ┌───────────────────┐
+                           │  PYTHON BACKEND   │
+                           │    (FastAPI)      │
+                           │                   │
+                           │  • Custom JWT Auth│
+                           └───┬───────┬───┬───┘
+                               │       │   │
+                ┌──────────────┘       │   └──────────────┐
+                │                      │                  │
+                ▼                      ▼                  ▼
+         ┌─────────────┐     ┌──────────────┐    ┌──────────────┐
+         │ AWS CLI +   │     │   FASTAPI    │    │   GEMINI     │
+         │   BOTO3     │     │  WEBSOCKET   │    │     API      │
+         │             │     │  (Progress)  │    │              │
+         │ AWS resource│     └──────┬───────┘    │ Cost Analysis│
+         │ discovery   │            │            └──────┬───────┘
+         └──────┬──────┘            │                   │
+                │                   │ Live updates      │
+                ▼                   ▼                   │
+         ┌─────────────┐   ┌───────────────┐            │
+         │     AWS     │   │    REACT      │            │
+         │  Resources  │   │  (Progress    │            │
+         │             │   │   Tracker)    │            │
+         │ EC2 / S3 /  │   └───────────────┘            │
+         │ EBS / RDS / │                                │
+         │ CloudWatch  │                                │
+         └─────────────┘                                │
+                                                        ▼
+                                                 ┌──────────────┐
+                                                 │  POSTGRESQL  │
+                                                 │              │
+                                                 │ • users      │
+                                                 │ • analyses   │
+                                                 └──────┬───────┘
+                                                        │
+                                                        │ Stored results
+                                                        ▼
+                                                 ┌───────────────┐
+                                                 │    REACT      │
+                                                 │ (Final Report │
+                                                 │  + Suggestions│
+                                                 │  + Fixes)     │
+                                                 └───────────────┘
+```
+
+## Request Flow
+
+```text
+① User ─·─·─► React ─·─·─► FastAPI Auth ─·─·─► JWT (PostgreSQL)
+
+② User selects AWS Region ─·─·─► Python Backend
+
+③ Python ─·─·─► AWS CLI + Boto3 ─·─·─► Fetches AWS resources in selected region
+
+④ Python ─·─·─► FastAPI WebSocket ─·─·─► React (live progress)
+
+⑤ Python ─·─·─► Google Gemini API ─·─·─► Cost analysis
+
+⑥ Python ─·─·─► PostgreSQL ─·─·─► Stores analysis history
+
+⑦ React ◄·─·─·─ Final report with suggestions & fixes
+```
+
+## What It Detects
+
+* **Over-provisioned resources** — EC2 instances or databases sized larger than needed
+* **Unused resources** — Unattached EBS volumes, unused Elastic IPs, idle resources
+* **Misconfigurations** — Wrong instance types, missing lifecycle policies, excessive log retention
+* **Resource optimization opportunities** — Potential cost issues identified from AWS resource
+* **Storage & logging costs** — Excessive S3/EBS storage and CloudWatch log retention
+* **AI-estimated savings** — Potential monthly savings estimates generated by Google Gemini based on the collected AWS resource information
+## Prerequisites
+
+- AWS CLI installed and configured (`aws configure`)
+- An active AWS account with at least one AWS resource
+- Appropriate read-only AWS IAM permissions
+- PostgreSQL running locally
+- Docker Desktop
+- A Google Gemini API key
+- Python 3.10+
+- Node.js 18+
+
+## How to Run
+### PostgreSQL
+
+- Start PostgreSQL using Docker:
+``` bash 
+docker run --name cloud-cost-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=your_password \
+  -e POSTGRES_DB=cloud_cost_detective \
+  -p 5432:5432 \
+  -d postgres
+```
+
+### AWS
+- Configure AWS CLI:
+``` bash
+aws configure
+```
+
+### Verify your AWS credentials:
+``` bash 
+aws sts get-caller-identity
+```
+
+### Backend
+``` bash 
+cd backend
+python -m venv venv
+```
+
+### Windows:
+``` bash 
+venv\Scripts\python.exe -m pip install -r requirements.txt
+venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+```
+
+#### Linux / macOS:
+``` bash 
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+### Create a .env file from .env.example and add your credentials:
+
+- GEMINI_API_KEY=your_gemini_api_key
+- GEMINI_MODEL=gemini-3.8-flash
+
+- AWS_REGION=ap-south-1
+- AWS_PROFILE=default
+
+- DATABASE_URL=postgresql://postgres:your_password@localhost:5432/cloud_cost_detective
+
+- JWT_SECRET=your_jwt_secret
+
+### Frontend
+``` bash
+cd frontend
+npm install
+npm run dev
+```
+
+## How It Works
+1. User signs up / logs in via custom JWT authentication
+2. User selects an AWS Region to analyze
+3. Python backend discovers AWS resources using AWS CLI and Boto3
+4. Live analysis progress is streamed to the UI using FastAPI WebSocket
+5. Collected AWS resource data is sent to Google Gemini for cost analysis
+6. Gemini identifies potential issues, severity, estimated savings, and recommended fixes
+7. Analysis results are stored in PostgreSQL
+8. Final report with findings, potential savings, suggestions, and remediation commands is displayed
+9. Previous analyses can be viewed from the History page
+
+## Security
+- AWS credentials are managed through the standard AWS credential chain
+- AWS credentials are not stored in source code
+- Gemini API key is stored in environment variables
+- JWT secret is stored in environment variables
+- Passwords are hashed using bcrypt
+- AWS scanning operations are read-only
+- Remediation commands are displayed for review and are not automatically executed
+- .env files are excluded from Git
