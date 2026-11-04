@@ -5,6 +5,18 @@ import ProgressTracker from '../components/ProgressTracker'
 import { fetchRegions, getToken, progressSocketUrl, runAnalysis } from '../lib/api'
 import type { ProgressEvent, RegionOption } from '../types'
 
+function generateUUID(): string {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
+    const v = c === "x" ? r : (r & 3) | 8;
+    return v.toString(16);
+  });
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [regions, setRegions] = useState<RegionOption[]>([])
@@ -48,7 +60,7 @@ export default function Dashboard() {
     if (!token || !region) {
       return
     }
-    const analysisId = crypto.randomUUID()
+    const analysisId = generateUUID()
     setRunning(true)
     setRunError('')
     setEvents([])
