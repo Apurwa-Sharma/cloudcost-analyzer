@@ -1,0 +1,60 @@
+
+services:
+  cloud-postgres:
+    image: postgres:16
+    container_name: cloud-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      POSTGRES_DB: cloudcost
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cloud-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloudcost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: cloud-cost-backend
+    container_name: cloud-cost-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    depends_on:
+      cloud-postgres:
+        condition: service_healthy
+    expose:
+      - "8000"
+    networks:
+      - cloud-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: cloud-cost-frontend
+    container_name: cloud-cost-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - cloud-network
+
+volumes:
+  postgres_data:
+    name: postgres_data
+
+networks:
+  cloud-network:
+    name: cloud-network
+    driver: bridge
+

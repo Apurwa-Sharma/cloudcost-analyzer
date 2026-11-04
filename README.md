@@ -119,7 +119,7 @@ An AI-powered tool that investigates AWS cloud costs automatically. It scans res
 docker run --name cloud-cost-postgres \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=your_password \
-  -e POSTGRES_DB=cloud_cost_detective \
+       -e POSTGRES_DB=cloudcost \
   -p 5432:5432 \
   -d postgres
 ```
@@ -162,7 +162,7 @@ uvicorn main:app --reload --port 8000
 - AWS_REGION=ap-south-1
 - AWS_PROFILE=default
 
-- DATABASE_URL=postgresql://postgres:your_password@localhost:5432/cloud_cost_detective
+- DATABASE_URL=postgresql://postgres:your_password@localhost:5432/cloudcost
 
 - JWT_SECRET=your_jwt_secret
 
