@@ -1,0 +1,60 @@
+name: DevSecOps
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  code-quality:
+    name: Code quality
+    uses: ./.github/workflows/code-quality.yml
+    permissions:
+      contents: read
+
+  secret-scanning:
+    name: Secret scanning
+    uses: ./.github/workflows/secret-scanning.yml
+    permissions:
+      contents: read
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-scan:
+    name: Dependency scanning
+    uses: ./.github/workflows/dependency-scan.yml
+    permissions:
+      contents: read
+
+  docker-scans:
+    name: Dockerfile and image scans
+    uses: ./.github/workflows/docker-scans.yml
+    permissions:
+      contents: read
+
+  sonar-scan:
+    name: SonarQube Cloud scan
+    uses: ./.github/workflows/sonar-scan.yml
+    permissions:
+      contents: read
+    secrets: inherit
+
+  docker-push:
+    name: Push Docker images to ECR
+    needs:
+      - code-quality
+      - secret-scanning
+      - dependency-scan
+      - docker-scans
+      - sonar-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/docker-push.yml
+    permissions:
+      contents: read
+      id-token: write

@@ -1,0 +1,54 @@
+name: Docker Scans
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-scans:
+    name: Dockerfile and image scans
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Lint frontend Dockerfile with Hadolint
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 < frontend/Dockerfile
+
+      - name: Lint backend Dockerfile with Hadolint
+        run: docker run --rm -i hadolint/hadolint:v2.12.0 < backend/Dockerfile
+
+      - name: Build frontend image locally
+        run: docker build --file frontend/Dockerfile --tag cloudcost-frontend:scan frontend
+
+      - name: Build backend image locally
+        run: docker build --file backend/Dockerfile --tag cloudcost-backend:scan backend
+
+      - name: Scan frontend image with Trivy
+        run: >-
+          docker run --rm
+          -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$HOME/.cache/trivy:/root/.cache/"
+          aquasec/trivy:0.58.2
+          image
+          --scanners vuln
+          --severity HIGH,CRITICAL
+          --format table
+          --exit-code 1
+          cloudcost-frontend:scan
+
+      - name: Scan backend image with Trivy
+        run: >-
+          docker run --rm
+          -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$HOME/.cache/trivy:/root/.cache/"
+          aquasec/trivy:0.58.2
+          image
+          --scanners vuln
+          --severity HIGH,CRITICAL
+          --format table
+          --exit-code 1
+          cloudcost-backend:scan
