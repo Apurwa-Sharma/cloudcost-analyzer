@@ -25,9 +25,8 @@ WORKDIR /app
 # Copy installed dependencies from builder
 COPY --from=backend-builder /install /usr/local
 
-RUN apk upgrade --no-cache
-
-RUN python -m pip install --no-cache-dir --upgrade setuptools==84.2.1
+RUN apk upgrade --no-cache && \
+    python -m pip install --no-cache-dir --upgrade setuptools==84.2.1
 
 # Copy application code
 COPY --from=backend-builder /app .
