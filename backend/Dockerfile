@@ -1,6 +1,8 @@
 
 # Stage 1: Backend Builder
-FROM python:3.11-slim AS backend-builder
+FROM python:3.11-alpine AS backend-builder
+
+RUN apk upgrade --no-cache
 
 # Setup working directory
 WORKDIR /app
@@ -15,13 +17,17 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 COPY . .
 
 # Stage 2: Backend Runtime
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
 # Setup working directory
 WORKDIR /app
 
 # Copy installed dependencies from builder
 COPY --from=backend-builder /install /usr/local
+
+RUN apk upgrade --no-cache
+
+RUN python -m pip install --no-cache-dir --upgrade setuptools==84.2.1
 
 # Copy application code
 COPY --from=backend-builder /app .
@@ -31,4 +37,3 @@ EXPOSE 8000
 
 # Start FastAPI application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
