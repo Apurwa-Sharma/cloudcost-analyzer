@@ -1,3 +1,4 @@
+
 name: Docker Push
 
 on:
@@ -13,9 +14,11 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     permissions:
       contents: read
       id-token: write
+
     steps:
       - name: Validate AWS and ECR configuration
         env:
@@ -25,46 +28,53 @@ jobs:
           ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
         run: |
           missing=()
+
           [[ -n "$AWS_REGION" ]] || missing+=("AWS_REGION")
           [[ -n "$AWS_ROLE_ARN" ]] || missing+=("AWS_ROLE_ARN")
           [[ -n "$ECR_FRONTEND_REPOSITORY" ]] || missing+=("ECR_FRONTEND_REPOSITORY")
           [[ -n "$ECR_BACKEND_REPOSITORY" ]] || missing+=("ECR_BACKEND_REPOSITORY")
 
           if (( ${#missing[@]} > 0 )); then
-            printf '::error::Missing required GitHub repository variables: %s\n' "${missing[*]}"
+            printf '::error::Missing required GitHub variables: %s\n' "${missing[*]}"
             exit 1
           fi
 
           if [[ ! "$AWS_ROLE_ARN" =~ ^arn:aws(-[a-z]+)?:iam::[0-9]{12}:role/.+ ]]; then
-            echo "::error::AWS_ROLE_ARN must be an IAM role ARN."
+            echo "::error::Invalid AWS_ROLE_ARN."
             exit 1
           fi
 
-          echo "AWS and ECR repository configuration is present."
+          echo "AWS and ECR configuration validated."
 
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Configure AWS credentials with OIDC
+      - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Resolve ECR registry and image names
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+
+      - name: Resolve ECR image names
         id: ecr
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
           ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
           ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
         run: |
-          account_id="$(aws sts get-caller-identity --query Account --output text)"
-          registry="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
-          echo "frontend_image=${registry}/${ECR_FRONTEND_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "backend_image=${registry}/${ECR_BACKEND_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-      - name: Log in to Amazon ECR
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "registry=${REGISTRY}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=${REGISTRY}/${ECR_FRONTEND_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=${REGISTRY}/${ECR_BACKEND_REPOSITORY}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
           ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
