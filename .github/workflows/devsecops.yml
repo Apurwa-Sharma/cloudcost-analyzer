@@ -52,8 +52,10 @@ jobs:
       - dependency-scan
       - docker-scans
       - sonar-scan
-    if: false
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
     uses: ./.github/workflows/docker-push.yml
+    
     permissions:
       contents: read
       id-token: write
