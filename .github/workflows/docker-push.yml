@@ -55,6 +55,32 @@ jobs:
           echo "Event: $GITHUB_EVENT_NAME"
           echo "Actor: $GITHUB_ACTOR"
 
+      
+      - name: Inspect GitHub OIDC claims
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+        run: |
+          TOKEN=$(curl -sS \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["value"])')
+
+          export OIDC_TOKEN="$TOKEN"
+
+          python3 - <<'PY'
+          import os, json, base64
+
+          token = os.environ["OIDC_TOKEN"]
+          payload = token.split(".")[1]
+          payload += "=" * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+
+          for key in ["iss", "aud", "sub", "repository", "ref"]:
+              print(f"{key}: {claims.get(key)}")
+          PY
+
+
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
